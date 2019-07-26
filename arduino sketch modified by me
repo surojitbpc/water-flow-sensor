@@ -1,0 +1,132 @@
+#include <ESP8266WiFi.h>
+#include <SPI.h>
+
+
+
+// WiFi SSD and Password
+
+char ssid[] = "NASAeye@SJ";
+
+char password[] = "surojit92";
+
+char server[] = "api.thingspeak.com";
+
+//Initialize the client library
+WiFiClient client;
+
+
+
+const int sensdatapin = D2;
+
+
+String apiKey = "0U5IAKZMPEUA435D";
+
+unsigned long myChannelNumber = 831456;
+
+
+void setup()  
+{
+
+  unsigned long duration;
+  float dursec;
+  float pulsefreq;
+  float flolit;
+  float flolitr;
+  float flogal;
+  float flocuft;
+
+
+
+  pinMode(sensdatapin, INPUT);
+
+  Serial.begin(115200);
+//  attachInterrupt(0, rpm, RISING);
+
+  delay(10);
+
+  // init done
+
+  WiFi.begin(ssid, password);
+
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected"); 
+
+}
+
+void loop()   
+{
+  const unsigned long duration = pulseIn(sensdatapin, HIGH);
+  //Pulse duration in microseconds
+
+  float dursec = duration / 1000000.0;
+  //Pulse duration in seconds
+
+  float pulsefreq = 10.0;
+
+  if ( duration  != 0 )
+  {
+    pulsefreq = 1.0 / dursec;
+  }
+  else
+  {
+    pulsefreq = 0.0;
+  }
+    //Pulse frequency in Hz
+
+    
+  //float flolitr = (pulsefreq * 60 / 7.5);
+  //float flolitr = (60 * (7.5 / pulsefreq));
+  float flolit = (7.5 / pulsefreq);
+  float flolitr = 60.0 * flolit;
+  //Flow rate in Liters/hour
+
+  float flogal = flolitr * .26417;
+  //Flow rate in Gallons/hour
+  float flocuft = flolitr * .035315;
+  //Flow rate in cu ft/hour
+
+
+  if (client.connect(server, 80)) { //   "184.106.153.149" or api.thingspeak.com
+    String postStr = apiKey;
+    postStr += "&field1=";
+    postStr += String(flolitr);
+    postStr += "\r\n\r\n";
+
+    client.print("POST /update HTTP/1.1\n");
+    client.print("Host: api.thingspeak.com\n");
+    client.print("Connection: close\n");
+    client.print("X-THINGSPEAKAPIKEY: " + apiKey + "\n");
+    client.print("Content-Type: application/x-www-form-urlencoded\n");
+    client.print("Content-Length: ");
+    client.print(postStr.length());
+    client.print("\n\n");
+    
+    client.println(postStr);
+
+    Serial.print(flolitr, DEC);
+    Serial.print("Litr/hr\r\n");
+
+  }
+
+  // Write to ThingSpeak. There are up to 8 fields in a channel, allowing you to store up to 8 different
+  // pieces of information in a channel.  Here, we write to field 1.
+
+
+
+  //delay(3600000);
+  delay(1000);
+  // 3600000 = 1 hour
+  // ThingSpeak will only accept updates every 15 seconds.
+
+}
